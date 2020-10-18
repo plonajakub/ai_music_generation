@@ -70,17 +70,17 @@ def save_notes_to_midi(notes: List[str], path: str) -> None:
 		for item in notes:
 			item = item.split(FIELD_SEPARATOR)
 			new_note = note.Note(item[2])
+			try:
+				delta = float(item[0])
+			except ValueError:
+				delta = Fraction(item[0])
+			offset += delta
 			new_note.offset = offset
 			try:
 				new_note.duration.quarterLength = float(item[1])
 			except ValueError:
 				new_note.duration.quarterLength = Fraction(item[1])
 			output_notes.append(new_note)
-			try:
-				delta = float(item[0])
-			except ValueError:
-				delta = Fraction(item[0])
-			offset += delta
 	else:  # item: pitch_with_octave
 		for item in notes:
 			new_note = note.Note(item)
