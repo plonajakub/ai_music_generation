@@ -2,9 +2,12 @@ from typing import List
 from music21 import converter, instrument, note, chord, stream
 import numpy as np
 import glob
+from fractions import Fraction
+
+FIELD_SEPARATOR = '$'
 
 
-def get_notes(data_path: str) -> List[List[str]]:
+def get_notes(data_path: str, with_timing=True) -> List[List[str]]:
 	all_notes = []
 	for file in glob.glob(data_path):
 		print("Parsing %s" % file)
@@ -20,17 +23,31 @@ def get_notes(data_path: str) -> List[List[str]]:
 
 		for part in file_parts:
 			part_notes = []
+
+			last_offset = 0
 			for item in part:
+				string_note = ''
+				if isinstance(item, note.Note) or isinstance(item, chord.Chord):
+					if with_timing:
+						relative_offset = item.offset - last_offset
+						last_offset = item.offset
+						string_note += str(relative_offset) + FIELD_SEPARATOR
+						string_note += str(item.duration.quarterLength) + FIELD_SEPARATOR
+				else:
+					continue
+
+				note_pitch = None
 				if isinstance(item, note.Note):
-					if item.octave is None:
-						item.octave = item.pitch.defaultOctave
-					part_notes.append(item.nameWithOctave)
-				elif isinstance(item, chord.Chord):
+					note_pitch = item.pitch
+				else:  # isinstance(item, chord.Chord)
 					sorted_chord = item.sortFrequencyAscending()
-					soprano_pitch = sorted_chord.pitches[-1]
-					if soprano_pitch.octave is None:
-						soprano_pitch.octave = soprano_pitch.defaulOctave
-					part_notes.append(soprano_pitch.nameWithOctave)
+					note_pitch = sorted_chord.pitches[-1]  # Get the soprano pitch
+
+				if note_pitch.octave is None:
+					note_pitch.octave = note_pitch.implicitOctave
+				string_note += note_pitch.nameWithOctave
+
+				part_notes.append(string_note)
 			if len(part_notes) != 0:
 				all_notes.append(part_notes)
 
@@ -49,12 +66,27 @@ def get_music_dataset(data_path: str, batch_size: int, seq_len: int):
 def save_notes_to_midi(notes: List[str], path: str) -> None:
 	output_notes = []
 	offset = 0
-	for item in notes:
-		new_note = note.Note(item)
-		new_note.offset = offset
-		new_note.storedInstrument = instrument.Violin()
-		output_notes.append(new_note)
-		offset += 0.5
+	if FIELD_SEPARATOR in notes[0]:  # item: relative_offset$quarter_note_duration$pitch_with_octave
+		for item in notes:
+			item = item.split(FIELD_SEPARATOR)
+			new_note = note.Note(item[2])
+			new_note.offset = offset
+			try:
+				new_note.duration.quarterLength = float(item[1])
+			except ValueError:
+				new_note.duration.quarterLength = Fraction(item[1])
+			output_notes.append(new_note)
+			try:
+				delta = float(item[0])
+			except ValueError:
+				delta = Fraction(item[0])
+			offset += delta
+	else:  # item: pitch_with_octave
+		for item in notes:
+			new_note = note.Note(item)
+			new_note.offset = offset
+			output_notes.append(new_note)
+			offset += 0.5
 
 	midi_stream = stream.Stream(output_notes)
 	midi_stream.write('midi', fp=path)
