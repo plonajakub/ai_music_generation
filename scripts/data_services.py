@@ -3,6 +3,10 @@ from music21 import converter, instrument, note, chord, stream
 import numpy as np
 import glob
 from fractions import Fraction
+import tensorflow as tf
+import os
+import time
+from utils import *
 
 FIELD_SEPARATOR = '$'
 
@@ -54,8 +58,48 @@ def get_notes(data_path: str, with_timing=True) -> List[List[str]]:
 	return all_notes
 
 
-def create_dataset(data_matrix, batch_size, seq_len):
-	return np.zeros((5, 5)), ['a', 'b''c']  # TODO
+def create_dataset(data_matrix, batch_size, seq_len, flat=False):
+	all_notes = []
+	for part in data_matrix:
+		all_notes.extend(part)
+
+	vocab = sorted(set(all_notes))
+	note2idx = {str_note: idx for idx, str_note in enumerate(vocab)}
+	idx2note = np.array(vocab)
+
+	all_notes_as_ints = np.array([note2idx[n] for n in all_notes])
+	log('d', 'Notes as ints: ' + str(all_notes_as_ints[:15]))
+	log('d', 'Ints as notes [mapping]: ' + str(idx2note[all_notes_as_ints[:15]]))
+	log('d', 'Ints as notes [original]: ' + str(np.array(all_notes[:15])))
+
+	all_datasets = []
+	for part in data_matrix:
+		part_as_ints = [note2idx[n] for n in part]
+		partial_dataset = tf.data.Dataset.from_tensor_slices(np.array(part_as_ints))
+		part_sequences = partial_dataset.batch(seq_len + 1, drop_remainder=True)
+		part_sequences_split = part_sequences.map(split_input_target)
+		all_datasets.append(part_sequences_split)
+
+	if flat:
+		flat_dataset = all_datasets[0]
+		for ds in all_datasets[1:]:
+			flat_dataset = flat_dataset.concatenate(ds)
+		flat_dataset = flat_dataset.batch(batch_size, drop_remainder=True)
+		log('i', 'Dataset created!')
+		log('i', 'Flat?: YES')
+		log('i', 'Type: %s' % flat_dataset)
+		log('i', 'No. of batches: %d' % len(flat_dataset))
+		log('i', 'Vocabulary size: %d' % len(idx2note))
+		return flat_dataset, idx2note
+	else:
+		for i in range(len(all_datasets)):
+			all_datasets[i] = all_datasets[i].batch(batch_size, drop_remainder=True)
+		log('i', 'Dataset created!')
+		log('i', 'Flat?: NO')
+		log('i', 'Type (partial dataset): %s' % all_datasets[0])
+		log('i', 'No. of batches: %s' % [len(ds) for ds in all_datasets])
+		log('i', 'Vocabulary size: %d' % len(idx2note))
+		return all_datasets, idx2note
 
 
 def get_music_dataset(data_path: str, batch_size: int, seq_len: int):
