@@ -11,9 +11,12 @@ import utils
 
 def load_model(model_dir: str, vocab_size: int):
     model_params = utils.load(os.path.join(model_dir, 'model_params.pickle'))
-    inference_model = train.create_model(vocab_size, model_params['EMBEDDING_DIM'], model_params['RNN_UNITS'],
+    inference_model = train.create_model(vocab_size=vocab_size,
+                                         embedding_dim=model_params['EMBEDDING_DIM'],
+                                         rnn_units=model_params['RNN_UNITS'],
+                                         rnn_stateful=model_params['RNN_STATEFUL'],
                                          batch_size=1)
-    inference_model.load_weights(tf.train.latest_checkpoint(model_dir))
+    inference_model.load_weights(tf.train.latest_checkpoint(model_dir))  # TODO load best model
     inference_model.build(tf.TensorShape([1, None]))
     return inference_model
 
@@ -47,16 +50,16 @@ def generate_music(inference_model, load_translated_dataset_result, notes_to_gen
 
 
 def main():
-    MODEL_NAME = 'bach_var'  # Load
-    TRANSLATED_DATASET_NAME = 'bach_sample_var'  # Load
-    COMPOSITION_NAME = 'test_composition_var.mid'  # Save
-    SAMPLE_SIZE = 10
+    TRANSLATED_DATASET_NAME = 'bach_sample_fp'  # Load
+    MODEL_NAME = 'bach_fp'  # Load
+    COMPOSITION_NAME = 'test_composition_fp_1.mid'  # Save
+    SAMPLE_SIZE = 10  # TODO add sample of choice
     NOTES_TO_GENERATE = 1000
 
     translated_dataset = data_services.load_translated_dataset(
         os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
     data_matrix, note2idx, idx2note, dataset_params = translated_dataset
-    model = load_model(os.path.join(train.CHECKPOINTS_DIR, MODEL_NAME), idx2note.size)
+    model = load_model(os.path.join(const.PATH_TO_CHECKPOINTS, MODEL_NAME), idx2note.size)
     model.summary()
     generated_music = generate_music(model, translated_dataset, NOTES_TO_GENERATE, SAMPLE_SIZE)
     data_services.save_notes_to_midi(generated_music, os.path.join(const.PATH_TO_COMPOSITIONS, COMPOSITION_NAME))

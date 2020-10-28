@@ -5,9 +5,8 @@ from typing import List, Tuple
 import numpy as np
 from music21 import converter, instrument, note, chord, stream
 
+import constants as const
 from utils import *
-
-FIELD_SEPARATOR = '$'
 
 
 def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
@@ -47,8 +46,8 @@ def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
                     if with_timing:
                         relative_offset = item.offset - last_offset
                         last_offset = item.offset
-                        string_note += str(relative_offset) + FIELD_SEPARATOR
-                        string_note += str(item.duration.quarterLength) + FIELD_SEPARATOR
+                        string_note += str(relative_offset) + const.FIELD_SEPARATOR
+                        string_note += str(item.duration.quarterLength) + const.FIELD_SEPARATOR
                 else:
                     continue
 
@@ -133,9 +132,9 @@ def create_dataset(load_translated_dataset_result: Tuple[List[List[str]], dict, 
 def save_notes_to_midi(notes: List[str], path: str) -> None:
     output_notes = []
     offset = 0
-    if FIELD_SEPARATOR in notes[0]:  # item: relative_offset$quarter_note_duration$pitch_with_octave
+    if const.FIELD_SEPARATOR in notes[0]:  # item: relative_offset$quarter_note_duration$pitch_with_octave
         for item in notes:
-            item = item.split(FIELD_SEPARATOR)
+            item = item.split(const.FIELD_SEPARATOR)
             new_note = note.Note(item[2])
             try:
                 delta = float(item[0])
@@ -159,13 +158,17 @@ def save_notes_to_midi(notes: List[str], path: str) -> None:
     midi_stream.write('midi', fp=path)
 
 
-if __name__ == '__main__':
-    PATH_TO_RAW_MIDIS = '../data/bach_all_not_corrupted/bach_all_not_corrupted_data/'
-    DATA_FILES_GLOB = 'var*.mid'
-    PATH_TO_TRANSLATED_DATASETS = '../data/pickles'
-    DATASET_NAME = 'bach_sample_var'
-    translate_midis(data_path=os.path.join(PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
-                    save_dir=os.path.join(PATH_TO_TRANSLATED_DATASETS, DATASET_NAME),
+def main():
+    DATA_FILES_GLOB = '01[ac]*.mid'  # Load
+    TRANSLATED_DATASET_NAME = 'bach_sample'  # Save
+
+    translate_midis(data_path=os.path.join(const.PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
+                    save_dir=os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME),
                     with_timing=True)
-    # translated_dataset = load_translated_dataset(os.path.join(PATH_TO_TRANSLATED_DATASETS, DATASET_NAME))
-    # dataset = create_dataset(translated_dataset, seq_len=3, flat=False)
+    # translated_dataset = load_translated_dataset(
+    #     os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
+    # dataset = create_dataset(translated_dataset, seq_len=3, flat=True)
+
+
+if __name__ == '__main__':
+    main()
