@@ -1,6 +1,6 @@
 import glob
 from fractions import Fraction
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from music21 import converter, instrument, note, chord, stream
@@ -10,13 +10,15 @@ from utils import *
 FIELD_SEPARATOR = '$'
 
 
-def get_notes(data_path: str, with_timing=True) -> List[List[str]]:
+def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
     """ Converts raw MIDIs into the list of parts of notes.
     Parts consist of notes only (there is no direct representation for chords,
     however, this is possible with with_timing = True).
     A note is stored in a part as a string with the format:
     (relative_offset + FIELD_SEPARATOR + duration + FIELD_SEPARATOR + note_pitch).
+    The list of parts along with dataset vocabulary and params are serialized to files.
     :param data_path: path to raw MIDI data, blobs are allowed
+    :param save_dir: root directory for serialized dataset, vocabs and params
     :param with_timing: when True the note string format is
     (relative_offset + FIELD_SEPARATOR + duration + FIELD_SEPARATOR + note_pitch),
     otherwise note string consists of note_pitch only
@@ -65,24 +67,40 @@ def get_notes(data_path: str, with_timing=True) -> List[List[str]]:
             if len(part_notes) != 0:
                 all_notes.append(part_notes)
 
-    return all_notes
+    all_notes_flat = []
+    for part in all_notes:
+        all_notes_flat.extend(part)
 
-
-def create_dataset(data_matrix: List[List[str]], seq_len: int, flat=False):
-    all_notes = []
-    for part in data_matrix:
-        all_notes.extend(part)
-
-    vocab = sorted(set(all_notes))
+    vocab = sorted(set(all_notes_flat))
     note2idx = {str_note: idx for idx, str_note in enumerate(vocab)}
     idx2note = np.array(vocab)
 
-    all_notes_as_ints = np.array([note2idx[n] for n in all_notes])
-    log('d', 'Notes as ints: ' + str(all_notes_as_ints[:15]))
-    log('d', 'Ints as notes [mapping]: ' + str(idx2note[all_notes_as_ints[:15]]))
-    log('d', 'Ints as notes [original]: ' + str(np.array(all_notes[:15])))
+    # Debug ###############
+    sample_notes_as_ints = np.array([note2idx[n] for n in all_notes_flat[:15]])
+    log('d', 'Notes as ints: ' + str(sample_notes_as_ints))
+    log('d', 'Ints as notes [mapping]: ' + str(idx2note[sample_notes_as_ints]))
+    log('d', 'Ints as notes [original]: ' + str(np.array(all_notes_flat[:15])))
+    # Debug end ###########
 
+    save(all_notes, os.path.join(save_dir, 'translated_midis.pickle'))
+    save(note2idx, os.path.join(save_dir, 'note2idx.pickle'))
+    save(idx2note, os.path.join(save_dir, 'idx2note.pickle'))
+    save({'WITH_TIMING': with_timing}, os.path.join(save_dir, 'params_py_dict.pickle'))
+
+
+def load_translated_dataset(dataset_path: str) -> Tuple[List[List[str]], dict, np.ndarray, dict]:
+    all_notes = load(os.path.join(dataset_path, 'translated_midis.pickle'))
+    note2idx = load(os.path.join(dataset_path, 'note2idx.pickle'))
+    idx2note = load(os.path.join(dataset_path, 'idx2note.pickle'))
+    dataset_params = load(os.path.join(dataset_path, 'params_py_dict.pickle'))
+    return all_notes, note2idx, idx2note, dataset_params
+
+
+def create_dataset(load_translated_dataset_result: Tuple[List[List[str]], dict, np.ndarray, dict], seq_len: int,
+                   flat=False):
+    data_matrix, note2idx, idx2note, dataset_params = load_translated_dataset_result
     all_datasets = []
+    # TODO tweaks for data continuity between batches (for model's stateful=True)
     for part in data_matrix:
         part_as_ints = [note2idx[n] for n in part]
         partial_dataset = tf.data.Dataset.from_tensor_slices(np.array(part_as_ints))
@@ -102,22 +120,15 @@ def create_dataset(data_matrix: List[List[str]], seq_len: int, flat=False):
         print([note2idx[n] for n in data_matrix[0]][:30])  # TODO refactor debug info
         for batch in flat_dataset.take(5):
             print('Batch: %s' % str(batch))
-        return flat_dataset, idx2note
+        return flat_dataset
     else:
         log('i', 'Dataset created!')
         log('i', 'Flat?: NO')
         log('i', 'Type (partial dataset): %s' % all_datasets[0])
         log('i', 'No. of batches: %s' % [len(ds) for ds in all_datasets])
         log('i', 'Vocabulary size: %d' % len(idx2note))
-        return all_datasets, idx2note
+        return all_datasets
 
-
-def get_music_dataset(data_path: str, with_timing: bool, seq_len: int, flat: bool):
-    notes = get_notes(data_path=data_path, with_timing=with_timing)
-    return create_dataset(data_matrix=notes, seq_len=seq_len, flat=flat)
-
-
-# TODO save get_notes results to a file
 
 def save_notes_to_midi(notes: List[str], path: str) -> None:
     output_notes = []
@@ -146,3 +157,15 @@ def save_notes_to_midi(notes: List[str], path: str) -> None:
 
     midi_stream = stream.Stream(output_notes)
     midi_stream.write('midi', fp=path)
+
+
+if __name__ == '__main__':
+    PATH_TO_RAW_MIDIS = '../data/bach_all_not_corrupted/bach_all_not_corrupted_data/'
+    DATA_FILES_GLOB = 'var*.mid'
+    PATH_TO_TRANSLATED_DATASETS = '../data/pickles'
+    DATASET_NAME = 'bach_sample_var'
+    translate_midis(data_path=os.path.join(PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
+                    save_dir=os.path.join(PATH_TO_TRANSLATED_DATASETS, DATASET_NAME),
+                    with_timing=True)
+    # translated_dataset = load_translated_dataset(os.path.join(PATH_TO_TRANSLATED_DATASETS, DATASET_NAME))
+    # dataset = create_dataset(translated_dataset, seq_len=3, flat=False)

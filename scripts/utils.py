@@ -1,3 +1,7 @@
+import os
+import pickle
+from typing import Any
+
 import tensorflow as tf
 
 
@@ -18,3 +22,14 @@ def split_input_target(chunk):
 
 def loss(labels, logits):
     return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+
+
+def save(obj: Any, path: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as file:
+        pickle.dump(obj, file)
+
+
+def load(path: str) -> Any:
+    with open(path, 'rb') as file:
+        return pickle.load(file)

@@ -1,3 +1,4 @@
+import glob
 import os
 
 import tensorflow as tf
@@ -7,9 +8,8 @@ import utils
 from utils import log
 
 # Data
-PATH_TO_DATA = '..\\data\\bach_all_not_corrupted\\bach_all_not_corrupted_data'
-DATA_BLOB = '01[ac]*.mid'
-DATASET_WITH_TIMING = True
+PATH_TO_TRANSLATED_DATA = '..\\data\\pickles'
+DATASET_NAME = 'bach_sample_var'
 DATASET_FLAT = True
 SEQ_LEN = 100
 
@@ -20,11 +20,14 @@ RNN_UNITS = 128
 RNN_STATEFUL = True
 
 # Training
-EPOCHS = 3
+EPOCHS = 20
 CHECKPOINTS_DIR = '..\\training_checkpoints'
-SAVE_MODEL_DIR = os.path.join(CHECKPOINTS_DIR, 'tests')
+MODEL_NAME = 'bach_var'
+SAVE_MODEL_DIR = os.path.join(CHECKPOINTS_DIR, MODEL_NAME)
 LOAD_MODEL_DIR = SAVE_MODEL_DIR
-CHECKPOINT_PREFIX = os.path.join(SAVE_MODEL_DIR, 'ckpt_{epoch}')
+CHECKPOINT_NAME_PATTERN = 'ckpt_[0-9]*'
+CHECKPOINT_NAME_FORMAT = 'ckpt_{epoch}'
+CHECKPOINT_PATH = os.path.join(SAVE_MODEL_DIR, CHECKPOINT_NAME_FORMAT)
 
 
 def create_model(vocab_size, embedding_dim, rnn_units, batch_size):
@@ -43,7 +46,7 @@ def create_model(vocab_size, embedding_dim, rnn_units, batch_size):
 def train_model(dataset, model):
     dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
 
-    if os.path.exists(LOAD_MODEL_DIR):
+    if len(glob.glob(os.path.join(LOAD_MODEL_DIR, CHECKPOINT_NAME_PATTERN))) != 0:
         model.load_weights(tf.train.latest_checkpoint(LOAD_MODEL_DIR))
         log('i', 'Model weights have been loaded from \'' + LOAD_MODEL_DIR + '\'')
     else:
@@ -52,7 +55,7 @@ def train_model(dataset, model):
     model.compile(optimizer='adam', loss=utils.loss)
 
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=CHECKPOINT_PREFIX,
+        filepath=CHECKPOINT_PATH,
         monitor='loss',
         save_best_only=True,
         save_weights_only=True)
@@ -61,9 +64,16 @@ def train_model(dataset, model):
 
 
 if __name__ == '__main__':
-    music_dataset, idx2note = data_services.get_music_dataset(data_path=os.path.join(PATH_TO_DATA, DATA_BLOB),
-                                                              with_timing=DATASET_WITH_TIMING,
-                                                              seq_len=SEQ_LEN, flat=DATASET_FLAT)
+    translated_dataset = data_services.load_translated_dataset(os.path.join(PATH_TO_TRANSLATED_DATA, DATASET_NAME))
+    data_matrix, note2idx, idx2note, dataset_params = translated_dataset
+    music_dataset = data_services.create_dataset(
+        load_translated_dataset_result=translated_dataset,
+        seq_len=SEQ_LEN,
+        flat=DATASET_FLAT)
+    # TODO rather save whole model
+    utils.save({'BATCH_SIZE': BATCH_SIZE, 'EMBEDDING_DIM': EMBEDDING_DIM,
+                'RNN_UNITS': RNN_UNITS, 'RNN_STATEFUL': RNN_STATEFUL},
+               os.path.join(SAVE_MODEL_DIR, 'model_params.pickle'))
     created_model = create_model(vocab_size=idx2note.size, embedding_dim=EMBEDDING_DIM, rnn_units=RNN_UNITS,
                                  batch_size=BATCH_SIZE)
     train_model(dataset=music_dataset, model=created_model)
