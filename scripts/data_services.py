@@ -2,7 +2,6 @@ import glob
 from fractions import Fraction
 from typing import List, Tuple
 
-import numpy as np
 from music21 import converter, instrument, note, chord, stream
 
 import constants as const
@@ -16,7 +15,7 @@ def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
     A note is stored in a part as a string with the format:
     (relative_offset + FIELD_SEPARATOR + duration + FIELD_SEPARATOR + note_pitch).
     The list of parts along with dataset vocabulary and params are serialized to files.
-    :param data_path: path to raw MIDI data, blobs are allowed
+    :param data_path: path to raw MIDI data, globs are allowed
     :param save_dir: root directory for serialized dataset, vocabs and params
     :param with_timing: when True the note string format is
     (relative_offset + FIELD_SEPARATOR + duration + FIELD_SEPARATOR + note_pitch),
@@ -46,7 +45,7 @@ def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
                     if with_timing:
                         relative_offset = item.offset - last_offset
                         last_offset = item.offset
-                        string_note += str(relative_offset) + const.FIELD_SEPARATOR
+                        string_note += str(float(relative_offset)) + const.FIELD_SEPARATOR
                         string_note += str(item.duration.quarterLength) + const.FIELD_SEPARATOR
                 else:
                     continue
@@ -74,24 +73,24 @@ def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
     note2idx = {str_note: idx for idx, str_note in enumerate(vocab)}
     idx2note = np.array(vocab)
 
-    # Debug ###############
+    # Debug ############### # TODO make this check automatic
     sample_notes_as_ints = np.array([note2idx[n] for n in all_notes_flat[:15]])
     log('d', 'Notes as ints: ' + str(sample_notes_as_ints))
     log('d', 'Ints as notes [mapping]: ' + str(idx2note[sample_notes_as_ints]))
     log('d', 'Ints as notes [original]: ' + str(np.array(all_notes_flat[:15])))
     # Debug end ###########
 
-    save(all_notes, os.path.join(save_dir, 'translated_midis.pickle'))
-    save(note2idx, os.path.join(save_dir, 'note2idx.pickle'))
-    save(idx2note, os.path.join(save_dir, 'idx2note.pickle'))
-    save({'WITH_TIMING': with_timing}, os.path.join(save_dir, 'params_py_dict.pickle'))
+    save(all_notes, os.path.join(save_dir, const.FN_TRANSLATED_MIDIS))
+    save(note2idx, os.path.join(save_dir, const.FN_NOTE2IDX))
+    save(idx2note, os.path.join(save_dir, const.FN_IDX2NOTE))
+    save({const.PM_WITH_TIMING: with_timing}, os.path.join(save_dir, const.FN_TRANSLATED_MIDIS_PARAMS))
 
 
 def load_translated_dataset(dataset_path: str) -> Tuple[List[List[str]], dict, np.ndarray, dict]:
-    all_notes = load(os.path.join(dataset_path, 'translated_midis.pickle'))
-    note2idx = load(os.path.join(dataset_path, 'note2idx.pickle'))
-    idx2note = load(os.path.join(dataset_path, 'idx2note.pickle'))
-    dataset_params = load(os.path.join(dataset_path, 'params_py_dict.pickle'))
+    all_notes = load(os.path.join(dataset_path, const.FN_TRANSLATED_MIDIS))
+    note2idx = load(os.path.join(dataset_path, const.FN_NOTE2IDX))
+    idx2note = load(os.path.join(dataset_path, const.FN_IDX2NOTE))
+    dataset_params = load(os.path.join(dataset_path, const.FN_TRANSLATED_MIDIS_PARAMS))
     return all_notes, note2idx, idx2note, dataset_params
 
 
@@ -99,13 +98,13 @@ def create_dataset(load_translated_dataset_result: Tuple[List[List[str]], dict, 
                    flat=False):
     data_matrix, note2idx, idx2note, dataset_params = load_translated_dataset_result
     all_datasets = []
-    # TODO tweaks for data continuity between batches (for model's stateful=True)
     for part in data_matrix:
         part_as_ints = [note2idx[n] for n in part]
-        partial_dataset = tf.data.Dataset.from_tensor_slices(np.array(part_as_ints))
-        part_sequences = partial_dataset.batch(seq_len + 1, drop_remainder=True)
-        part_sequences_split = part_sequences.map(split_input_target)
-        all_datasets.append(part_sequences_split)
+        partial_dataset = tf.data.Dataset.from_generator(example_generator,
+                                                         (tf.int64, tf.int64),
+                                                         (tf.TensorShape([seq_len]), tf.TensorShape([seq_len])),
+                                                         args=(np.array(part_as_ints), seq_len))
+        all_datasets.append(partial_dataset)
 
     if flat:
         flat_dataset = all_datasets[0]
@@ -113,19 +112,30 @@ def create_dataset(load_translated_dataset_result: Tuple[List[List[str]], dict, 
             flat_dataset = flat_dataset.concatenate(ds)
         log('i', 'Dataset created!')
         log('i', 'Flat?: YES')
-        log('i', 'Type: %s' % flat_dataset)
-        log('i', 'No. of batches: %d' % len(flat_dataset))
+        log('i', 'Type: %s' % str(flat_dataset))
+        log('i', 'No. of elements: %d' % len(list(flat_dataset.as_numpy_iterator())))
         log('i', 'Vocabulary size: %d' % len(idx2note))
-        print([note2idx[n] for n in data_matrix[0]][:30])  # TODO refactor debug info
-        for batch in flat_dataset.take(5):
-            print('Batch: %s' % str(batch))
+
+        # Debug ##########   # TODO refactor debug info
+        log('d', str([note2idx[n] for n in data_matrix[0][:30]]))
+        for element in flat_dataset.take(3):
+            log('d', 'Element: %s' % str(element))
+        # Debug end ######
+
         return flat_dataset
     else:
         log('i', 'Dataset created!')
         log('i', 'Flat?: NO')
-        log('i', 'Type (partial dataset): %s' % all_datasets[0])
-        log('i', 'No. of batches: %s' % [len(ds) for ds in all_datasets])
+        log('i', 'Type (partial dataset): %s' % str(all_datasets[0]))
+        log('i', 'No. of elements: %s' % str([len(list(ds.as_numpy_iterator())) for ds in all_datasets]))
         log('i', 'Vocabulary size: %d' % len(idx2note))
+
+        # Debug ########## # TODO refactor debug info
+        log('d', str([note2idx[n] for n in data_matrix[0][:30]]))
+        for element in all_datasets[0].take(3):
+            log('d', 'Element (dataset 0): %s' % str(element))
+        # Debug end ######
+
         return all_datasets
 
 
@@ -167,7 +177,7 @@ def main():
                     with_timing=True)
     # translated_dataset = load_translated_dataset(
     #     os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
-    # dataset = create_dataset(translated_dataset, seq_len=3, flat=True)
+    # dataset = create_dataset(translated_dataset, seq_len=3, flat=False)
 
 
 if __name__ == '__main__':
