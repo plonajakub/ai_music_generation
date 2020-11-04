@@ -169,8 +169,8 @@ def save_notes_to_midi(notes: List[str], path: str) -> None:
 
 
 def main():
-    DATA_FILES_GLOB = '01[ac]*.mid'  # Load
-    TRANSLATED_DATASET_NAME = 'bach_sample'  # Save
+    DATA_FILES_GLOB = 'var*.mid'  # Load
+    TRANSLATED_DATASET_NAME = 'bach_variations_all_timing_true'  # Save
 
     translate_midis(data_path=os.path.join(const.PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
                     save_dir=os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME),

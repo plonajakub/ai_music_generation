@@ -45,19 +45,19 @@ def train_model(dataset, model, batch_size, epochs, load_model_dir, checkpoint_p
 
 def main():
     # Data
-    TRANSLATED_DATASET_NAME = 'bach_sample_fp'  # Load
+    TRANSLATED_DATASET_NAME = 'bach_variations_all_timing_true'  # Load
     CREATE_DATASET_FLAT = True  # TODO support sparse dataset (CREATE_DATASET_FLAT = False)
-    SEQ_LEN = 500
+    SEQ_LEN = 100
 
     # Model creation
     BATCH_SIZE = 1  # Batch size = 1 would be good for stateful = True (?)
     EMBEDDING_DIM = 256
-    RNN_UNITS = 128
+    RNN_UNITS = 1024
     RNN_STATEFUL = True
 
     # Training
-    EPOCHS = 100
-    MODEL_NAME = 'bach_fp'  # Save
+    EPOCHS = 10
+    MODEL_NAME = 'bach_variations_stateful_true'  # Save
     SAVE_MODEL_DIR = os.path.join(const.PATH_TO_CHECKPOINTS, MODEL_NAME)
     LOAD_MODEL_DIR = SAVE_MODEL_DIR
     CHECKPOINT_PATH = os.path.join(SAVE_MODEL_DIR, const.CHECKPOINT_NAME_FORMAT)

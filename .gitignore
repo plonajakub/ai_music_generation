@@ -219,3 +219,4 @@ cython_debug/
 data/
 training_checkpoints/
 compositions/
+experimental_data/
