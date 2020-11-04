@@ -9,6 +9,7 @@ import utils
 from utils import log
 
 
+# TODO add more models for experiments
 def create_model(vocab_size, embedding_dim, rnn_units, rnn_stateful, batch_size):
     model = tf.keras.Sequential([
         tf.keras.layers.Embedding(vocab_size, embedding_dim,
@@ -52,10 +53,10 @@ def main():
     BATCH_SIZE = 1  # Batch size = 1 would be good for stateful = True (?)
     EMBEDDING_DIM = 256
     RNN_UNITS = 128
-    RNN_STATEFUL = False
+    RNN_STATEFUL = True
 
     # Training
-    EPOCHS = 20
+    EPOCHS = 100
     MODEL_NAME = 'bach_fp'  # Save
     SAVE_MODEL_DIR = os.path.join(const.PATH_TO_CHECKPOINTS, MODEL_NAME)
     LOAD_MODEL_DIR = SAVE_MODEL_DIR
@@ -69,9 +70,11 @@ def main():
         seq_len=SEQ_LEN,
         flat=CREATE_DATASET_FLAT)
     # TODO rather save whole model
-    utils.save({'BATCH_SIZE': BATCH_SIZE, 'EMBEDDING_DIM': EMBEDDING_DIM,
-                'RNN_UNITS': RNN_UNITS, 'RNN_STATEFUL': RNN_STATEFUL},
-               os.path.join(SAVE_MODEL_DIR, 'model_params.pickle'))
+    utils.save({const.PM_BATCH_SIZE: BATCH_SIZE,
+                const.PM_EMBEDDING_DIM: EMBEDDING_DIM,
+                const.PM_RNN_UNITS: RNN_UNITS,
+                const.PM_RNN_STATEFUL: RNN_STATEFUL},
+               os.path.join(SAVE_MODEL_DIR, const.FN_MODEL_PARAMS))
     created_model = create_model(vocab_size=idx2note.size, embedding_dim=EMBEDDING_DIM, rnn_units=RNN_UNITS,
                                  rnn_stateful=RNN_STATEFUL, batch_size=BATCH_SIZE)
     train_model(dataset=music_dataset,
