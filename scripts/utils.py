@@ -11,6 +11,8 @@ def log(log_type, msg):
         print('[I] ' + msg)
     elif log_type == 'd':
         print('[D] ' + msg)
+    elif log_type == 'w':
+        print('[W] ' + msg)
     else:
         print('[-] ' + msg)
 

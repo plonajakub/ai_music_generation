@@ -14,6 +14,7 @@ FN_NOTE2IDX = 'note2idx.pickle'
 FN_IDX2NOTE = 'idx2note.pickle'
 FN_TRANSLATED_MIDIS_PARAMS = 'params_py_dict.pickle'
 FN_MODEL_PARAMS = 'model_params.pickle'
+FN_PROCESSED_FILES = 'processed_files.pickle'
 
 # PM - parameter
 PM_WITH_TIMING = 'WITH_TIMING'
@@ -21,3 +22,6 @@ PM_BATCH_SIZE = 'BATCH_SIZE'
 PM_EMBEDDING_DIM = 'EMBEDDING_DIM'
 PM_RNN_UNITS = 'RNN_UNITS'
 PM_RNN_STATEFUL = 'RNN_STATEFUL'
+
+LINE_SEPARATOR = '=' * 50
+LINE_SEPARATOR_2 = '-' * 50

@@ -1,7 +1,10 @@
+import copy
 import glob
 from fractions import Fraction
 from typing import List, Tuple
 
+import matplotlib.pyplot as plt
+import pandas as pd
 from music21 import converter, instrument, note, chord, stream
 
 import constants as const
@@ -23,7 +26,8 @@ def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
     :return: Matrix with non-empty musical parts of notes with the representation described above
     """
     all_notes = []
-    for file in glob.glob(data_path):
+    files_to_process = glob.glob(data_path)
+    for file in files_to_process:
         print("Parsing %s" % file)
         file_stream = converter.parse(file)
 
@@ -84,6 +88,7 @@ def translate_midis(data_path: str, save_dir: str, with_timing=True) -> None:
     save(note2idx, os.path.join(save_dir, const.FN_NOTE2IDX))
     save(idx2note, os.path.join(save_dir, const.FN_IDX2NOTE))
     save({const.PM_WITH_TIMING: with_timing}, os.path.join(save_dir, const.FN_TRANSLATED_MIDIS_PARAMS))
+    save(files_to_process, os.path.join(save_dir, const.FN_PROCESSED_FILES))
 
 
 def load_translated_dataset(dataset_path: str) -> Tuple[List[List[str]], dict, np.ndarray, dict]:
@@ -168,16 +173,82 @@ def save_notes_to_midi(notes: List[str], path: str) -> None:
     midi_stream.write('midi', fp=path)
 
 
+def inspect_dataset(path_to_dataset):
+    all_notes, note2idx, idx2note, dataset_params = load_translated_dataset(path_to_dataset)
+    processed_files = None
+    try:
+        processed_files = load(os.path.join(path_to_dataset, const.FN_PROCESSED_FILES))
+    except FileNotFoundError:
+        log('w', 'Missing file \'%s\'' % const.FN_PROCESSED_FILES)
+
+    note_occurrences = copy.copy(note2idx)
+    for key in note_occurrences.keys():
+        note_occurrences[key] = 0
+
+    for part in all_notes:
+        for n in part:
+            note_occurrences[n] += 1
+
+    all_notes_as_idx = []
+    for part in all_notes:
+        for n in part:
+            all_notes_as_idx.append(note2idx[n])
+
+    NOTE_OCCURRENCES_BINS = 200
+    plt.hist(all_notes_as_idx, bins=NOTE_OCCURRENCES_BINS)
+    plt.title('Occurrences of notes (%d bins)' % NOTE_OCCURRENCES_BINS)
+    plt.xlabel('Note index')
+    plt.ylabel('Occurrences in the dataset')
+    plt.grid(True)
+    plt.show()
+
+    string_notes = note_occurrences.keys()
+    occurrences = note_occurrences.values()
+    occurrences_df = pd.DataFrame({'Note': pd.Series(string_notes), 'Occurrences': pd.Series(occurrences)})
+
+    CUMULATIVE_OCCURRENCES_BINS = 500
+    occurrences_df.hist(bins=CUMULATIVE_OCCURRENCES_BINS, cumulative=True)
+    # Cumulative in the title is not the same as the 'cumulative' named argument in the hist()
+    plt.title('Cumulative occurrences (%d bins)' % CUMULATIVE_OCCURRENCES_BINS)
+    plt.xlabel('Number of occurrences')
+    plt.ylabel('Occurrences of the occurrences')
+    plt.grid(True)
+    plt.show()
+
+    print(const.LINE_SEPARATOR)
+    if processed_files is not None:
+        print('No. of processed files: %d' % len(processed_files))
+    else:
+        print('No. of processed files: N/A')
+    print('Total number of notes: %d' % len(all_notes_as_idx))
+    print('Unique notes: %d' % len(idx2note))
+    print('Dataset parameters:', dataset_params)
+    print(const.LINE_SEPARATOR)
+    print('Dataframe of note occurrences')
+    print(const.LINE_SEPARATOR_2)
+    print(occurrences_df)
+    print(const.LINE_SEPARATOR)
+    print('Note occurrences summary')
+    print(const.LINE_SEPARATOR_2)
+    print(occurrences_df['Occurrences'].describe())
+    print(const.LINE_SEPARATOR)
+    print('Note string representation summary')
+    print(const.LINE_SEPARATOR_2)
+    print(occurrences_df['Note'].describe())
+    print(const.LINE_SEPARATOR)
+
+
 def main():
     DATA_FILES_GLOB = 'var*.mid'  # Load
     TRANSLATED_DATASET_NAME = 'bach_variations_all_timing_true'  # Save
 
-    translate_midis(data_path=os.path.join(const.PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
-                    save_dir=os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME),
-                    with_timing=True)
+    # translate_midis(data_path=os.path.join(const.PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
+    #                 save_dir=os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME),
+    #                 with_timing=True)
     # translated_dataset = load_translated_dataset(
     #     os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
     # dataset = create_dataset(translated_dataset, seq_len=3, flat=False)
+    inspect_dataset(os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
 
 
 if __name__ == '__main__':
