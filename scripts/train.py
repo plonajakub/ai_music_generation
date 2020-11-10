@@ -11,17 +11,20 @@ import utils
 from utils import log
 
 
-# TODO add more models for experiments
 def create_model(vocab_size, embedding_dim, rnn_units, rnn_stateful, batch_size):
-    model = tf.keras.Sequential([
-        tf.keras.layers.Embedding(vocab_size, embedding_dim,
-                                  batch_input_shape=[batch_size, None]),
-        tf.keras.layers.LSTM(rnn_units,
-                             return_sequences=True,
-                             stateful=rnn_stateful),
-        tf.keras.layers.Dense(vocab_size)
-    ])
-    model.summary()
+    if isinstance(rnn_units, int):
+        rnn_units = [rnn_units]
+    model = []
+
+    model.append(tf.keras.layers.Embedding(vocab_size, embedding_dim,
+                                           batch_input_shape=[batch_size, None]))
+    for i in range(len(rnn_units)):
+        model.append(tf.keras.layers.LSTM(rnn_units[i],
+                                          return_sequences=True,
+                                          stateful=rnn_stateful))
+    model.append(tf.keras.layers.Dense(vocab_size))
+
+    model = tf.keras.Sequential(model)
     return model
 
 
@@ -95,13 +98,13 @@ def train_model_flat(dataset, model, batch_size, epochs, load_model_dir, checkpo
 def main():
     # Data
     TRANSLATED_DATASET_NAME = 'bach_fugue_all_timing_true'  # Load
-    CREATE_DATASET_FLAT = False
+    CREATE_DATASET_FLAT = True
     SEQ_LEN = 500
 
     # Model creation
     BATCH_SIZE = 1  # Batch size = 1 would be good for stateful = True
     EMBEDDING_DIM = 256
-    RNN_UNITS = 1024
+    RNN_UNITS = [1024]  # Array of ints (int for each lstm layer)
     RNN_STATEFUL = True
 
     # Training
@@ -126,6 +129,7 @@ def main():
                os.path.join(SAVE_MODEL_DIR, const.FN_MODEL_PARAMS))
     created_model = create_model(vocab_size=idx2note.size, embedding_dim=EMBEDDING_DIM, rnn_units=RNN_UNITS,
                                  rnn_stateful=RNN_STATEFUL, batch_size=BATCH_SIZE)
+    created_model.summary()
     if CREATE_DATASET_FLAT:
         train_model_flat(dataset=music_dataset,
                          model=created_model,
