@@ -1,5 +1,7 @@
 import glob
 import os
+import sys
+import time
 
 import tensorflow as tf
 
@@ -23,9 +25,17 @@ def create_model(vocab_size, embedding_dim, rnn_units, rnn_stateful, batch_size)
     return model
 
 
-def train_model(dataset, model, batch_size, epochs, load_model_dir, checkpoint_path):
-    dataset = dataset.batch(batch_size, drop_remainder=True)
+@tf.function
+def train_step(model, optimizer, inp, target):
+    with tf.GradientTape() as tape:
+        predictions = model(inp)
+        loss = tf.reduce_mean(utils.loss(labels=target, logits=predictions))
+    grads = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(grads, model.trainable_variables))
+    return loss
 
+
+def restore_model(model, load_model_dir):
     if len(glob.glob(os.path.join(load_model_dir, const.CHECKPOINT_NAME_GLOB))) != 0:
         model.load_weights(tf.train.latest_checkpoint(load_model_dir))
         log('i', 'Model weights have been loaded from \'' + load_model_dir + '\'')
@@ -34,30 +44,69 @@ def train_model(dataset, model, batch_size, epochs, load_model_dir, checkpoint_p
         log('i', 'Compiling new model...')
     model.compile(optimizer='adam', loss=utils.loss)
 
+
+def train_model_sparse(dataset, model, batch_size, epochs, load_model_dir, save_model_dir, checkpoint_path):
+    for i in range(len(dataset)):
+        dataset[i] = dataset[i].batch(batch_size, drop_remainder=True)
+
+    restore_model(model, load_model_dir)
+
+    loss = sys.float_info.max
+    optimizer = tf.keras.optimizers.Adam()
+    for epoch in range(epochs):
+        start = time.time()
+        batch_n = 0
+        for partial_dataset in dataset:
+            model.reset_states()
+            for inp, target in partial_dataset:
+                loss = train_step(model=model, optimizer=optimizer, inp=inp, target=target)
+
+                if batch_n % const.TRAIN_REPORT_FREQ == 0:
+                    print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch_n + 1, loss))
+                batch_n += 1
+
+        try:
+            saved_model_loss = utils.load(os.path.join(load_model_dir, const.FN_MODEL_LOSS))
+            new_model = False
+        except FileNotFoundError:
+            new_model = True
+
+        if new_model or loss < saved_model_loss:
+            model.save_weights(checkpoint_path)
+            utils.save(loss, os.path.join(save_model_dir, const.FN_MODEL_LOSS))
+            print('New weights saved! Loss {:.4f}'.format(loss))
+
+        print('Epoch {} Loss {:.4f}'.format(epoch + 1, loss))
+        print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+
+
+def train_model_flat(dataset, model, batch_size, epochs, load_model_dir, checkpoint_path):
+    dataset = dataset.batch(batch_size, drop_remainder=True)
+    restore_model(model, load_model_dir)
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_path,
         monitor='loss',
         save_best_only=True,
         save_weights_only=True)
 
-    history = model.fit(dataset, epochs=epochs, callbacks=[checkpoint_callback])
+    model.fit(dataset, epochs=epochs, callbacks=[checkpoint_callback])
 
 
 def main():
     # Data
     TRANSLATED_DATASET_NAME = 'bach_fugue_all_timing_true'  # Load
-    CREATE_DATASET_FLAT = True  # TODO support sparse dataset (CREATE_DATASET_FLAT = False)
+    CREATE_DATASET_FLAT = False
     SEQ_LEN = 500
 
     # Model creation
-    BATCH_SIZE = 1  # Batch size = 1 would be good for stateful = True (?)
+    BATCH_SIZE = 1  # Batch size = 1 would be good for stateful = True
     EMBEDDING_DIM = 256
     RNN_UNITS = 1024
     RNN_STATEFUL = True
 
     # Training
     EPOCHS = 100
-    MODEL_NAME = 'bach_fugue_stateful_true'  # Save
+    MODEL_NAME = 'bach_fugue_stateful_true_train_sparse_dataset'  # Save
     SAVE_MODEL_DIR = os.path.join(const.PATH_TO_CHECKPOINTS, MODEL_NAME)
     LOAD_MODEL_DIR = SAVE_MODEL_DIR
     CHECKPOINT_PATH = os.path.join(SAVE_MODEL_DIR, const.CHECKPOINT_NAME_FORMAT)
@@ -77,12 +126,21 @@ def main():
                os.path.join(SAVE_MODEL_DIR, const.FN_MODEL_PARAMS))
     created_model = create_model(vocab_size=idx2note.size, embedding_dim=EMBEDDING_DIM, rnn_units=RNN_UNITS,
                                  rnn_stateful=RNN_STATEFUL, batch_size=BATCH_SIZE)
-    train_model(dataset=music_dataset,
-                model=created_model,
-                batch_size=BATCH_SIZE,
-                epochs=EPOCHS,
-                load_model_dir=LOAD_MODEL_DIR,
-                checkpoint_path=CHECKPOINT_PATH)
+    if CREATE_DATASET_FLAT:
+        train_model_flat(dataset=music_dataset,
+                         model=created_model,
+                         batch_size=BATCH_SIZE,
+                         epochs=EPOCHS,
+                         load_model_dir=LOAD_MODEL_DIR,
+                         checkpoint_path=CHECKPOINT_PATH)
+    else:
+        train_model_sparse(dataset=music_dataset,
+                           model=created_model,
+                           batch_size=BATCH_SIZE,
+                           epochs=EPOCHS,
+                           load_model_dir=LOAD_MODEL_DIR,
+                           save_model_dir=SAVE_MODEL_DIR,
+                           checkpoint_path=CHECKPOINT_PATH)
 
 
 if __name__ == '__main__':

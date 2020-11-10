@@ -15,6 +15,7 @@ FN_IDX2NOTE = 'idx2note.pickle'
 FN_TRANSLATED_MIDIS_PARAMS = 'params_py_dict.pickle'
 FN_MODEL_PARAMS = 'model_params.pickle'
 FN_PROCESSED_FILES = 'processed_files.pickle'
+FN_MODEL_LOSS = 'model_loss.pickle'
 
 # PM - parameter
 PM_WITH_TIMING = 'WITH_TIMING'
@@ -25,3 +26,5 @@ PM_RNN_STATEFUL = 'RNN_STATEFUL'
 
 LINE_SEPARATOR = '=' * 50
 LINE_SEPARATOR_2 = '-' * 50
+
+TRAIN_REPORT_FREQ = 10  # Number of batches between reports
