@@ -109,7 +109,8 @@ def main():
 
     # Training
     EPOCHS = 100
-    MODEL_NAME = 'bach_fugue_stateful_true_train_sparse_dataset'  # Save
+    MODEL_NAME = 'jazz_chameleon_only_stateful_true'  # Save
+    OVERWRITE_PARAMS = False
     SAVE_MODEL_DIR = os.path.join(const.PATH_TO_CHECKPOINTS, MODEL_NAME)
     LOAD_MODEL_DIR = SAVE_MODEL_DIR
     CHECKPOINT_PATH = os.path.join(SAVE_MODEL_DIR, const.CHECKPOINT_NAME_FORMAT)
@@ -122,11 +123,15 @@ def main():
         seq_len=SEQ_LEN,
         flat=CREATE_DATASET_FLAT)
     # TODO rather save whole model
-    utils.save({const.PM_BATCH_SIZE: BATCH_SIZE,
-                const.PM_EMBEDDING_DIM: EMBEDDING_DIM,
-                const.PM_RNN_UNITS: RNN_UNITS,
-                const.PM_RNN_STATEFUL: RNN_STATEFUL},
-               os.path.join(SAVE_MODEL_DIR, const.FN_MODEL_PARAMS))
+    params_dict = {const.PM_TRANSLATED_DATASET_NAME: TRANSLATED_DATASET_NAME,
+                   const.PM_DATASET_FLAT: CREATE_DATASET_FLAT,
+                   const.PM_SEQ_LEN: SEQ_LEN,
+                   const.PM_BATCH_SIZE: BATCH_SIZE,
+                   const.PM_EMBEDDING_DIM: EMBEDDING_DIM,
+                   const.PM_RNN_UNITS: RNN_UNITS,
+                   const.PM_RNN_STATEFUL: RNN_STATEFUL}
+    utils.verify_training_params(MODEL_NAME, params_dict, warn_only=OVERWRITE_PARAMS)
+    utils.save(params_dict, os.path.join(SAVE_MODEL_DIR, const.FN_MODEL_PARAMS))
     created_model = create_model(vocab_size=idx2note.size, embedding_dim=EMBEDDING_DIM, rnn_units=RNN_UNITS,
                                  rnn_stateful=RNN_STATEFUL, batch_size=BATCH_SIZE)
     created_model.summary()

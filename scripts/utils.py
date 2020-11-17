@@ -5,6 +5,8 @@ from typing import Any
 import numpy as np
 import tensorflow as tf
 
+import constants as const
+
 
 def log(log_type, msg):
     if log_type == 'i':
@@ -43,6 +45,17 @@ def save(obj: Any, path: str) -> None:
 def load(path: str) -> Any:
     with open(path, 'rb') as file:
         return pickle.load(file)
+
+
+def verify_training_params(model_name: str, params_dict: dict, warn_only=False):
+    saved_params = load(os.path.join(const.PATH_TO_CHECKPOINTS, model_name, const.FN_MODEL_PARAMS))
+    for key in saved_params.keys():
+        if params_dict[key] != saved_params[key]:
+            msg = 'Param %s differs from saved param (model: %s)' % (key, model_name)
+            if warn_only:
+                log('w', msg)
+            else:
+                raise ValueError(msg + '\nAborting execution...')
 
 
 if __name__ == '__main__':

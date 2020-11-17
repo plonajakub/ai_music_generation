@@ -217,8 +217,10 @@ def inspect_dataset(path_to_dataset):
 
     print(const.LINE_SEPARATOR)
     if processed_files is not None:
+        print('Processed files: %s' % str(processed_files))
         print('No. of processed files: %d' % len(processed_files))
     else:
+        print('Processed files: N/A')
         print('No. of processed files: N/A')
     print('Total number of notes: %d' % len(all_notes_as_idx))
     print('Unique notes: %d' % len(idx2note))
@@ -238,6 +240,15 @@ def inspect_dataset(path_to_dataset):
     print(const.LINE_SEPARATOR)
 
 
+def inspect_model_params(model_name: str):
+    params = load(os.path.join(const.PATH_TO_CHECKPOINTS, model_name, const.FN_MODEL_PARAMS))
+    print(const.LINE_SEPARATOR)
+    print('Model params')
+    print(const.LINE_SEPARATOR_2)
+    print(str(params))
+    print(const.LINE_SEPARATOR)
+
+
 def main():
     DATA_FILES_GLOB = '*fugue*.mid'  # Load
     TRANSLATED_DATASET_NAME = 'bach_fugue_all_timing_true'  # Save
@@ -248,7 +259,10 @@ def main():
     # translated_dataset = load_translated_dataset(
     #     os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
     # dataset = create_dataset(translated_dataset, seq_len=3, flat=False)
-    inspect_dataset(os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
+    # inspect_dataset(os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
+
+    MODEL_NAME = 'jazz_chameleon_only_stateful_true'
+    inspect_model_params(MODEL_NAME)
 
 
 if __name__ == '__main__':
