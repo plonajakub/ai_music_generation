@@ -97,9 +97,9 @@ def train_model_flat(dataset, model, batch_size, epochs, load_model_dir, checkpo
 
 def main():
     # Data
-    TRANSLATED_DATASET_NAME = 'bach_fugue_all_timing_true'  # Load
+    TRANSLATED_DATASET_NAME = 'jazz_piano_3_timing_true'  # Load
     CREATE_DATASET_FLAT = True
-    SEQ_LEN = 500
+    SEQ_LEN = 100
 
     # Model creation
     BATCH_SIZE = 1  # Batch size = 1 would be good for stateful = True
@@ -109,7 +109,7 @@ def main():
 
     # Training
     EPOCHS = 100
-    MODEL_NAME = 'jazz_chameleon_only_stateful_true'  # Save
+    MODEL_NAME = 'jazz_piano_3_stateful_true'  # Save
     OVERWRITE_PARAMS = False
     SAVE_MODEL_DIR = os.path.join(const.PATH_TO_CHECKPOINTS, MODEL_NAME)
     LOAD_MODEL_DIR = SAVE_MODEL_DIR

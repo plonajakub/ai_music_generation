@@ -1,4 +1,4 @@
-PATH_TO_RAW_MIDIS = '..\\data\\bach_all_not_corrupted\\bach_all_not_corrupted_data'
+PATH_TO_RAW_MIDIS = '..\\data\\jazz_piano_only'
 PATH_TO_TRANSLATED_DATASETS = '..\\data\\pickles'
 PATH_TO_COMPOSITIONS = '..\\compositions'
 PATH_TO_CHECKPOINTS = '..\\training_checkpoints'

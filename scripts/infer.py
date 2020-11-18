@@ -50,9 +50,9 @@ def generate_music(inference_model, load_translated_dataset_result, notes_to_gen
 
 
 def main():
-    TRANSLATED_DATASET_NAME = 'bach_fugue_all_timing_true'  # Load
-    MODEL_NAME = 'bach_fugue_stateful_true'  # Load
-    COMPOSITION_NAME = 'bach_fugue_all_timing_true_stateful_true_3.mid'  # Save
+    TRANSLATED_DATASET_NAME = 'jazz_piano_3_timing_true'  # Load
+    MODEL_NAME = 'jazz_piano_3_stateful_true'  # Load
+    COMPOSITION_NAME = 'jazz_piano_3_timing_true_stateful_true_3.mid'  # Save
     SAMPLE_SIZE = 1  # TODO add sample of choice - now sample must be manually created like regular dataset
     NOTES_TO_GENERATE = 1000
 

@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from music21 import converter, instrument, note, chord, stream
 
-import constants as const
 from utils import *
 
 
@@ -250,8 +249,8 @@ def inspect_model_params(model_name: str):
 
 
 def main():
-    DATA_FILES_GLOB = '*fugue*.mid'  # Load
-    TRANSLATED_DATASET_NAME = 'bach_fugue_all_timing_true'  # Save
+    DATA_FILES_GLOB = '*.mid'  # Load
+    TRANSLATED_DATASET_NAME = 'jazz_piano_3_timing_true'  # Save
 
     # translate_midis(data_path=os.path.join(const.PATH_TO_RAW_MIDIS, DATA_FILES_GLOB),
     #                 save_dir=os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME),
@@ -259,10 +258,10 @@ def main():
     # translated_dataset = load_translated_dataset(
     #     os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
     # dataset = create_dataset(translated_dataset, seq_len=3, flat=False)
-    # inspect_dataset(os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
+    inspect_dataset(os.path.join(const.PATH_TO_TRANSLATED_DATASETS, TRANSLATED_DATASET_NAME))
 
-    MODEL_NAME = 'jazz_chameleon_only_stateful_true'
-    inspect_model_params(MODEL_NAME)
+    # MODEL_NAME = 'jazz_piano_3_stateful_true'
+    # inspect_model_params(MODEL_NAME)
 
 
 if __name__ == '__main__':

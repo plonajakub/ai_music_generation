@@ -48,7 +48,11 @@ def load(path: str) -> Any:
 
 
 def verify_training_params(model_name: str, params_dict: dict, warn_only=False):
-    saved_params = load(os.path.join(const.PATH_TO_CHECKPOINTS, model_name, const.FN_MODEL_PARAMS))
+    try:
+        saved_params = load(os.path.join(const.PATH_TO_CHECKPOINTS, model_name, const.FN_MODEL_PARAMS))
+    except FileNotFoundError:
+        return
+
     for key in saved_params.keys():
         if params_dict[key] != saved_params[key]:
             msg = 'Param %s differs from saved param (model: %s)' % (key, model_name)
